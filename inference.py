@@ -1,7 +1,7 @@
 """
 Official inference.py baseline script for DataCleaner-Env.
 Meta PyTorch OpenEnv Hackathon - Stateful Data Cleaning Environment.
-(Updated to use 100% built-in libraries - Zero external dependencies)
+(Updated to strictly use API_BASE_URL and API_KEY to hit the proxy)
 """
 
 import os
@@ -11,9 +11,10 @@ import urllib.request
 import urllib.error
 
 # Environment configuration
+# CRITICAL FIX: Looking exactly for the keys the Meta evaluator injects
 ENV_URL = os.getenv("ENV_URL", "http://localhost:8000")
-API_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-API_KEY = os.getenv("OPENAI_API_KEY", "dummy-key-for-validation")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
+API_KEY = os.getenv("API_KEY", "dummy-key-for-validation")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4")
 
 # Task definitions
@@ -36,7 +37,7 @@ BASELINE_ACTIONS = {
 }
 
 def validate_openai_client():
-    """Validate OpenAI client is active using a direct REST call."""
+    """Validate OpenAI client is active using a direct REST call to the proxy."""
     try:
         url = f"{API_BASE_URL.rstrip('/')}/chat/completions"
         headers = {
