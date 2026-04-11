@@ -92,9 +92,11 @@ class ResetRequest(BaseModel):
     Request to reset the environment to a specific task.
     """
     task_id: str = Field(
-        ...,
-        description="Task identifier (e.g., 'triage-clean-easy', 'triage-clean-medium', 'triage-clean-hard')"
+        default="triage-clean-easy",
+        description="Task identifier (defaults to easy if not provided by evaluator)"
     )
+    seed: Optional[int] = Field(default=None, description="Random seed")
+    options: Optional[Dict[str, Any]] = Field(default=None, description="Additional reset options")
     
     class Config:
         json_schema_extra = {
@@ -103,13 +105,13 @@ class ResetRequest(BaseModel):
             }
         }
 
-
 class ResetResponse(BaseModel):
     """
-    Response from reset endpoint containing initial observation.
+    Response from reset endpoint containing initial observation and info.
     """
     observation: Observation
     task_id: str
+    info: Dict[str, Any] = Field(default_factory=dict, description="Standard RL info dict")
     
     class Config:
         json_schema_extra = {
@@ -119,10 +121,10 @@ class ResetResponse(BaseModel):
                     "schema_errors": [],
                     "available_actions": ["DROP_NULLS", "FILL_NULLS"]
                 },
-                "task_id": "triage-clean-easy"
+                "task_id": "triage-clean-easy",
+                "info": {}
             }
         }
-
 
 class StepRequest(BaseModel):
     """
