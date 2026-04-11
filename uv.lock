@@ -546,7 +546,7 @@ wheels = [
 [[package]]
 name = "datacleaner-env"
 version = "1.0.0"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "openai" },

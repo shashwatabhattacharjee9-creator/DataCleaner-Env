@@ -1,0 +1,32 @@
+name: datacleaner-env
+version: 1.0.0
+description: A stateful data cleaning environment for reinforcement learning agents
+
+tasks:
+  - id: triage-clean-easy
+    description: Remove duplicate rows and fill null values in patient triage data
+    difficulty: easy
+    
+  - id: triage-clean-medium
+    description: Replace string age values with numeric types in patient records
+    difficulty: medium
+    
+  - id: triage-clean-hard
+    description: Drop logically invalid rows with discharge dates before admission dates
+    difficulty: hard
+
+models:
+  observation: models.Observation
+  action: models.Action
+
+server:
+  type: fastapi
+  module: server.app
+  app: app
+  host: 0.0.0.0
+  port: 7860
+
+endpoints:
+  reset: /reset
+  step: /step
+  state: /state
