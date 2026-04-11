@@ -437,5 +437,11 @@ async def health():
     return {"status": "healthy"}
 
 
+def main():
+    """Entry point for the openenv validator and CLI."""
+    import uvicorn
+    # Using the string reference "server.app:app" is safer for CLI execution
+    uvicorn.run("server.app:app", host="0.0.0.0", port=8000)
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    main()
