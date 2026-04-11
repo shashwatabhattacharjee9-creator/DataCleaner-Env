@@ -1,13 +1,15 @@
 """
 Official inference.py baseline script for DataCleaner-Env.
 Meta PyTorch OpenEnv Hackathon - Stateful Data Cleaning Environment.
+(Updated to use built-in urllib to avoid ModuleNotFoundError)
 """
 
 import os
 import sys
-import requests
+import json
+import urllib.request
+import urllib.error
 from openai import OpenAI
-
 
 # Environment configuration
 ENV_URL = os.getenv("ENV_URL", "http://localhost:8000")
@@ -34,12 +36,10 @@ BASELINE_ACTIONS = {
     ]
 }
 
-
 def validate_openai_client():
     """Validate OpenAI client is active with a dummy call."""
     try:
         client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-        # Make a minimal completion call to prove client is active
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[{"role": "user", "content": "ping"}],
@@ -50,6 +50,12 @@ def validate_openai_client():
         print(f"[WARNING] OpenAI client validation failed: {e}", flush=True)
         return False
 
+def make_post_request(url, payload, timeout=10):
+    """Helper function to make POST requests using built-in urllib."""
+    data = json.dumps(payload).encode('utf-8')
+    req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        return json.loads(response.read().decode('utf-8'))
 
 def run_task(task_id):
     """Execute a single task with baseline actions."""
@@ -57,33 +63,21 @@ def run_task(task_id):
     
     try:
         # Reset environment
-        reset_response = requests.post(
-            f"{ENV_URL}/reset",
-            json={"task_id": task_id},
-            timeout=10
-        )
-        reset_response.raise_for_status()
+        make_post_request(f"{ENV_URL}/reset", {"task_id": task_id})
         
         actions = BASELINE_ACTIONS[task_id]
         total_reward = 0.0
         final_reward = 0.0
         step_count = 0
-        done = False
         
         # Execute baseline actions
         for action in actions:
             step_count += 1
-            step_response = requests.post(
-                f"{ENV_URL}/step",
-                json={
-                    "task_id": task_id,
-                    "action": action
-                },
-                timeout=10
-            )
-            step_response.raise_for_status()
+            result = make_post_request(f"{ENV_URL}/step", {
+                "task_id": task_id,
+                "action": action
+            })
             
-            result = step_response.json()
             reward = result.get("reward", 0.0)
             done = result.get("done", False)
             action_type = action["action_type"]
@@ -94,14 +88,12 @@ def run_task(task_id):
             done_str = "true" if done else "false"
             print(f"[STEP] step={step_count} action={action_type} reward={reward:.2f} done={done_str} error=null", flush=True)
         
-        # Calculate average score
         score = final_reward
-        
         print(f"[END] success=true steps={step_count} score={score:.2f} rewards={total_reward:.2f}", flush=True)
         return True
         
-    except requests.exceptions.RequestException as e:
-        print(f"[STEP] step=1 action=ERROR reward=0.20 done=true error={str(e)[:50]}", flush=True)
+    except urllib.error.URLError as e:
+        print(f"[STEP] step=1 action=ERROR reward=0.20 done=true error={str(getattr(e, 'reason', e))[:50]}", flush=True)
         print(f"[END] success=false steps=1 score=0.20 rewards=0.20", flush=True)
         return False
     except Exception as e:
@@ -109,21 +101,18 @@ def run_task(task_id):
         print(f"[END] success=false steps=1 score=0.20 rewards=0.20", flush=True)
         return False
 
-
 def main():
     """Main execution function with crash-proofing."""
     try:
-        # Validate OpenAI client
         print("[INFO] Validating OpenAI client...", flush=True)
         validate_openai_client()
         
-        # Test environment health
         print(f"[INFO] Testing environment at {ENV_URL}...", flush=True)
-        health_response = requests.get(f"{ENV_URL}/health", timeout=5)
-        health_response.raise_for_status()
+        req = urllib.request.Request(f"{ENV_URL}/health")
+        with urllib.request.urlopen(req, timeout=5) as response:
+            pass # Healthy
         print("[INFO] Environment is healthy", flush=True)
         
-        # Run all tasks
         success_count = 0
         for task_id in TASKS:
             if run_task(task_id):
@@ -132,7 +121,7 @@ def main():
         print(f"[INFO] Completed {success_count}/{len(TASKS)} tasks successfully", flush=True)
         sys.exit(0)
         
-    except requests.exceptions.ConnectionError:
+    except urllib.error.URLError:
         print("[ERROR] Cannot connect to environment server", flush=True)
         for task_id in TASKS:
             print(f"[START] task={task_id} env=datacleaner-v1 model={MODEL_NAME}", flush=True)
@@ -147,7 +136,6 @@ def main():
             print(f"[STEP] step=1 action=ERROR reward=0.20 done=true error=unexpected", flush=True)
             print(f"[END] success=false steps=1 score=0.20 rewards=0.20", flush=True)
         sys.exit(0)
-
 
 if __name__ == "__main__":
     main()
