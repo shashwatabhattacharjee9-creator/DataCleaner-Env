@@ -1,7 +1,7 @@
 """
 Official inference.py baseline script for DataCleaner-Env.
 Meta PyTorch OpenEnv Hackathon - Stateful Data Cleaning Environment.
-(Updated to use built-in urllib to avoid ModuleNotFoundError)
+(Updated to use 100% built-in libraries - Zero external dependencies)
 """
 
 import os
@@ -9,7 +9,6 @@ import sys
 import json
 import urllib.request
 import urllib.error
-from openai import OpenAI
 
 # Environment configuration
 ENV_URL = os.getenv("ENV_URL", "http://localhost:8000")
@@ -37,14 +36,22 @@ BASELINE_ACTIONS = {
 }
 
 def validate_openai_client():
-    """Validate OpenAI client is active with a dummy call."""
+    """Validate OpenAI client is active using a direct REST call."""
     try:
-        client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[{"role": "user", "content": "ping"}],
-            max_tokens=5
-        )
+        url = f"{API_BASE_URL.rstrip('/')}/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {API_KEY}"
+        }
+        data = json.dumps({
+            "model": MODEL_NAME,
+            "messages": [{"role": "user", "content": "ping"}],
+            "max_tokens": 5
+        }).encode('utf-8')
+        
+        req = urllib.request.Request(url, data=data, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as response:
+            pass # Request succeeded
         return True
     except Exception as e:
         print(f"[WARNING] OpenAI client validation failed: {e}", flush=True)
