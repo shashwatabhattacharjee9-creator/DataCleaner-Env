@@ -299,12 +299,12 @@ def create_observation(dataset: List[Dict[str, Any]], task_id: str) -> Observati
 
 
 @app.post("/reset", response_model=ResetResponse)
-async def reset(request: ResetRequest):
+async def reset(request: Optional[ResetRequest] = None):
     """
     Resets the environment to the initial state for the specified task.
     """
-    # Use the requested task_id or fallback to easy
-    task_id = request.task_id or "triage-clean-easy"
+    # If the bot sends absolutely no body (request is None), default to easy
+    task_id = request.task_id if request and request.task_id else "triage-clean-easy"
     
     try:
         initial_dataset = get_initial_dataset(task_id)
@@ -325,7 +325,7 @@ async def reset(request: ResetRequest):
     return ResetResponse(
         observation=observation,
         task_id=task_id,
-        info={}  # Added required info dictionary for standard RL compliance
+        info={}
     )
 
 @app.post("/step", response_model=StepResponse)
